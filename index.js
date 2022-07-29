@@ -72,7 +72,6 @@ const formatTime = (time) =>
   })}${i18n.t("day")})`;
 
 const renderDataRow = (dotColor, textContent, table) => {
-  console.log("Rendering row...")
   const item = document.createElement("li");
   item.style.display = "flex";
   item.style.alignItems = "center";
@@ -102,7 +101,6 @@ const renderDataRow = (dotColor, textContent, table) => {
 };
 
 const computeColorData = (table) => {
-  console.log("Running computeColorData...")
   updateMinutesScale();
   table.textContent = "";
   /**
@@ -178,7 +176,6 @@ const computeColorData = (table) => {
 };
 
 const computeCustomData = (table) => {
-  console.log("Running computeCustomData...")
   table.textContent = "";
   const parsedEventLengths = {};
   for (const key in CUSTOM_EVENT_TITLES) {
@@ -195,11 +192,8 @@ const computeCustomData = (table) => {
     }
   });
 
-  console.log(parsedEventLengths)
-
   
   for (const [title, colorValue] of Object.entries(CUSTOM_EVENT_TITLES)) {
-    console.log(`${title} - ${formatTime(parsedEventLengths[title])}`)
     renderDataRow(colorValue, `${title} - ${formatTime(parsedEventLengths[title])}`, table)
   }
 
@@ -237,14 +231,12 @@ const renderTable = (titleContent) => {
 
 init = () => {
   const customTable = renderTable("Custom Table");
-  computeCustomData(customTable);
-  setInterval(() => { computeCustomData(customTable) }, 5000);
+  setInterval(() => { computeCustomData(customTable) }, 500);
   /**
    * Build table with time details
    */
   const table = renderTable(i18n.t("title"));
-  computeColorData(table);
-  setInterval(() => { computeColorData(table) }, 5000);
+  setInterval(() => { computeColorData(table) }, 500);
 };
 
 /**
@@ -253,7 +245,6 @@ init = () => {
 const initInterval = setInterval(() => {
   const meetingWithSearchBox = document.querySelectorAll("[role=search]");
   if (meetingWithSearchBox.length) {
-    console.log("Running Init...")
     init();
     clearInterval(initInterval);
   }
