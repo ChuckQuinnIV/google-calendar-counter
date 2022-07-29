@@ -29,7 +29,7 @@ const i18n = {
     if (translations.hasOwnProperty(language)) {
       return translations[language][key];
     }
-    return translations.en[key];
+    return translations.en[key]
   },
 };
 
@@ -41,19 +41,134 @@ const i18n = {
 const parseRGBColor = (rgbColor) =>
   rgbColor
     ? rgbColor
-        .replace("rgb(", "")
-        .replace(")", "")
-        .replace(" ", "")
-        .split(",")
-        .map((string) => parseInt(string))
+      .replace("rgb(", "")
+      .replace(")", "")
+      .replace(" ", "")
+      .split(",")
+      .map((string) => parseInt(string))
     : parseRGBColor(NOT_ACCEPTED_YET_MEETINGS_COLOR);
 
-const updateMinutesScale = (events) => {
+const updateMinutesScale = () => {
   if (window.innerHeight < 700) {
     minuteHeight = MINUTE_HEIGHT_SMALL;
   } else {
     minuteHeight = MINUTE_HEIGHT_NORMAL;
   }
+};
+
+const getTimeFromEventSize = (event) =>
+  (parseInt(event.style.height.replace("px", "") || 0) +
+    EVENT_BORDER_SIZE) *
+  minuteHeight;
+
+const formatTime = (time) =>
+  `${time >= 60 ? `${Math.trunc(time / 60)}h` : ""}${time % 60 !== 0 ? `${time % 60}m` : ""
+  } (${(time / MINUTES_PER_DAY).toLocaleString(language, {
+    maximumFractionDigits: 1,
+  })}${i18n.t("day")})`;
+
+const computeColorData = (table) => {
+  console.log("Running computeData...")
+  table.textContent = "";
+  /**
+   * Compute data
+   */
+  const events = document.querySelectorAll("[data-eventchip]");
+
+  const colorEvents = {};
+
+  updateMinutesScale();
+
+  events.forEach((event) => {
+    let eventColor =
+      event.style.backgroundColor || NOT_ACCEPTED_YET_MEETINGS_COLOR;
+
+    if (!colorEvents[eventColor]) colorEvents[eventColor] = [];
+    colorEvents[eventColor].push(event);
+  });
+
+  /**
+   * Merge colors (handling past events opacity).
+   * To get the color of the past events google does 255 - [(255 - color) * 0.3], i.e. 178.5 + 0.3 * color
+   */
+
+  const parsedColors = Object.keys(colorEvents).map((colorKey) => ({
+    original: colorKey,
+    parsed: parseRGBColor(colorKey),
+  }));
+  const findPastEventsColor = (color) => {
+    return parsedColors.find((lookupColor) => {
+      return (
+        color
+          .map(
+            (value, index) =>
+              Math.abs(value * 0.3 + 178.5 - lookupColor.parsed[index]) < 1.5
+          )
+          .reduce((acc, val) => acc && val) && color !== lookupColor.parsed
+      );
+    });
+  };
+
+  parsedColors.forEach((color) => {
+    const pastEventsColor = findPastEventsColor(color.parsed);
+    if (
+      pastEventsColor &&
+      pastEventsColor.original !== NOT_ACCEPTED_YET_MEETINGS_COLOR &&
+      color.original !== NOT_ACCEPTED_YET_MEETINGS_COLOR
+    ) {
+      colorEvents[color.original] = [
+        ...colorEvents[color.original],
+        ...colorEvents[pastEventsColor.original],
+      ];
+      delete colorEvents[pastEventsColor.original];
+    }
+  });
+
+  const colors = Object.keys(colorEvents).map((color) => {
+    const timeInSeconds = colorEvents[color].reduce((time, event) => {
+      return time + getTimeFromEventSize(event);
+    }, 0);
+    return {
+      color: color,
+      timeInSeconds,
+      time: formatTime(timeInSeconds),
+    };
+  });
+
+  /**
+   * Add elements for each color
+   */
+  colors
+    .sort((colorA, colorB) => colorB.timeInSeconds - colorA.timeInSeconds)
+    .forEach((color) => {
+      console.log("Rendering colors...")
+      const item = document.createElement("li");
+      item.style.display = "flex";
+      item.style.alignItems = "center";
+      item.style.marginBottom = "12px";
+
+      const colorDot = document.createElement("span");
+      colorDot.style.display = "inline-block";
+      colorDot.style.height = "20px";
+      colorDot.style.width = "20px";
+      colorDot.style.borderRadius = "20px";
+      colorDot.style.backgroundColor = color.color;
+      colorDot.style.marginRight = "8px";
+      if (color.color === NOT_ACCEPTED_YET_MEETINGS_COLOR)
+        colorDot.style.border = "1px solid black";
+
+      const text = document.createElement("span");
+      text.style.color = "#3c4043";
+      text.style.fontSize = "14px";
+      text.style.fontWeight = "400";
+      text.style.lineHeight = "16px";
+      text.style.fontFamily = "Roboto,Helvetica,Arial,sans-serif";
+      text.textContent = color.time;
+
+      item.appendChild(colorDot);
+      item.appendChild(text);
+      table.appendChild(item);
+    });
 };
 
 init = () => {
@@ -89,121 +204,8 @@ init = () => {
   miniMonthNavigator.insertAdjacentElement("afterend", table);
   miniMonthNavigator.insertAdjacentElement("afterend", title);
 
-  const computeData = () => {
-    table.textContent = "";
-    /**
-     * Compute data
-     */
-    const events = document.querySelectorAll("[data-eventchip]");
-
-    const colorEvents = {};
-
-    updateMinutesScale(events);
-
-    events.forEach((event) => {
-      let eventColor =
-        event.style.backgroundColor || NOT_ACCEPTED_YET_MEETINGS_COLOR;
-
-      if (!colorEvents[eventColor]) colorEvents[eventColor] = [];
-      colorEvents[eventColor].push(event);
-    });
-
-    const getTimeFromEventSize = (event) =>
-      (parseInt(event.style.height.replace("px", "") || 0) +
-        EVENT_BORDER_SIZE) *
-      minuteHeight;
-
-    formatTime = (time) =>
-      `${time >= 60 ? `${Math.trunc(time / 60)}h` : ""}${
-        time % 60 !== 0 ? `${time % 60}m` : ""
-      } (${(time / MINUTES_PER_DAY).toLocaleString(language, {
-        maximumFractionDigits: 1,
-      })}${i18n.t("day")})`;
-
-    /**
-     * Merge colors (handling past events opacity).
-     * To get the color of the past events google does 255 - [(255 - color) * 0.3], i.e. 178.5 + 0.3 * color
-     */
-
-    const parsedColors = Object.keys(colorEvents).map((colorKey) => ({
-      original: colorKey,
-      parsed: parseRGBColor(colorKey),
-    }));
-    const findPastEventsColor = (color) => {
-      return parsedColors.find((lookupColor) => {
-        return (
-          color
-            .map(
-              (value, index) =>
-                Math.abs(value * 0.3 + 178.5 - lookupColor.parsed[index]) < 1.5
-            )
-            .reduce((acc, val) => acc && val) && color !== lookupColor.parsed
-        );
-      });
-    };
-
-    parsedColors.forEach((color) => {
-      const pastEventsColor = findPastEventsColor(color.parsed);
-      if (
-        pastEventsColor &&
-        pastEventsColor.original !== NOT_ACCEPTED_YET_MEETINGS_COLOR &&
-        color.original !== NOT_ACCEPTED_YET_MEETINGS_COLOR
-      ) {
-        colorEvents[color.original] = [
-          ...colorEvents[color.original],
-          ...colorEvents[pastEventsColor.original],
-        ];
-        delete colorEvents[pastEventsColor.original];
-      }
-    });
-
-    const colors = Object.keys(colorEvents).map((color) => {
-      const timeInSeconds = colorEvents[color].reduce((time, event) => {
-        return time + getTimeFromEventSize(event);
-      }, 0);
-      return {
-        color: color,
-        timeInSeconds,
-        time: formatTime(timeInSeconds),
-      };
-    });
-
-    /**
-     * Add elements for each color
-     */
-    colors
-      .sort((colorA, colorB) => colorB.timeInSeconds - colorA.timeInSeconds)
-      .forEach((color) => {
-        const item = document.createElement("li");
-        item.style.display = "flex";
-        item.style.alignItems = "center";
-        item.style.marginBottom = "12px";
-
-        const colorDot = document.createElement("span");
-        colorDot.style.display = "inline-block";
-        colorDot.style.height = "20px";
-        colorDot.style.width = "20px";
-        colorDot.style.borderRadius = "20px";
-        colorDot.style.backgroundColor = color.color;
-        colorDot.style.marginRight = "8px";
-        if (color.color === NOT_ACCEPTED_YET_MEETINGS_COLOR)
-          colorDot.style.border = "1px solid black";
-
-        const text = document.createElement("span");
-        text.style.color = "#3c4043";
-        text.style.fontSize = "14px";
-        text.style.fontWeight = "400";
-        text.style.lineHeight = "16px";
-        text.style.fontFamily = "Roboto,Helvetica,Arial,sans-serif";
-        text.textContent = color.time;
-
-        item.appendChild(colorDot);
-        item.appendChild(text);
-        table.appendChild(item);
-      });
-  };
-
-  setInterval(computeData, 500);
+  computeColorData(table);
+  setInterval(() => { computeColorData(table) }, 5000);
 };
 
 /**
@@ -212,6 +214,7 @@ init = () => {
 const initInterval = setInterval(() => {
   const meetingWithSearchBox = document.querySelectorAll("[role=search]");
   if (meetingWithSearchBox.length) {
+    console.log("Running Init...")
     init();
     clearInterval(initInterval);
   }
