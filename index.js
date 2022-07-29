@@ -8,6 +8,10 @@ const EVENT_BORDER_SIZE = 2; // there is 2px of gap at the bottom of each event
 const MINUTES_PER_DAY = 7 * 60; // 7 hours in a day of work
 const NOT_ACCEPTED_YET_MEETINGS_COLOR = "rgb(255, 255, 255)";
 let minuteHeight = MINUTE_HEIGHT_NORMAL;
+const CUSTOM_EVENT_TITLES = {
+  "🎮 WoW": "red",
+  "🎮 D2": "green",
+}
 
 /**
  * i18n utils
@@ -67,8 +71,39 @@ const formatTime = (time) =>
     maximumFractionDigits: 1,
   })}${i18n.t("day")})`;
 
+const renderDataRow = (dotColor, textContent, table) => {
+  console.log("Rendering row...")
+  const item = document.createElement("li");
+  item.style.display = "flex";
+  item.style.alignItems = "center";
+  item.style.marginBottom = "12px";
+
+  const colorDot = document.createElement("span");
+  colorDot.style.display = "inline-block";
+  colorDot.style.height = "20px";
+  colorDot.style.width = "20px";
+  colorDot.style.borderRadius = "20px";
+  colorDot.style.backgroundColor = dotColor;
+  colorDot.style.marginRight = "8px";
+  if (dotColor === NOT_ACCEPTED_YET_MEETINGS_COLOR)
+    colorDot.style.border = "1px solid black";
+
+  const text = document.createElement("span");
+  text.style.color = "#3c4043";
+  text.style.fontSize = "14px";
+  text.style.fontWeight = "400";
+  text.style.lineHeight = "16px";
+  text.style.fontFamily = "Roboto,Helvetica,Arial,sans-serif";
+  text.textContent = textContent;
+
+  item.appendChild(colorDot);
+  item.appendChild(text);
+  table.appendChild(item);
+};
+
 const computeColorData = (table) => {
-  console.log("Running computeData...")
+  console.log("Running computeColorData...")
+  updateMinutesScale();
   table.textContent = "";
   /**
    * Compute data
@@ -76,9 +111,6 @@ const computeColorData = (table) => {
   const events = document.querySelectorAll("[data-eventchip]");
 
   const colorEvents = {};
-
-  updateMinutesScale();
-
   events.forEach((event) => {
     let eventColor =
       event.style.backgroundColor || NOT_ACCEPTED_YET_MEETINGS_COLOR;
@@ -141,40 +173,39 @@ const computeColorData = (table) => {
   colors
     .sort((colorA, colorB) => colorB.timeInSeconds - colorA.timeInSeconds)
     .forEach((color) => {
-      console.log("Rendering colors...")
-      const item = document.createElement("li");
-      item.style.display = "flex";
-      item.style.alignItems = "center";
-      item.style.marginBottom = "12px";
-
-      const colorDot = document.createElement("span");
-      colorDot.style.display = "inline-block";
-      colorDot.style.height = "20px";
-      colorDot.style.width = "20px";
-      colorDot.style.borderRadius = "20px";
-      colorDot.style.backgroundColor = color.color;
-      colorDot.style.marginRight = "8px";
-      if (color.color === NOT_ACCEPTED_YET_MEETINGS_COLOR)
-        colorDot.style.border = "1px solid black";
-
-      const text = document.createElement("span");
-      text.style.color = "#3c4043";
-      text.style.fontSize = "14px";
-      text.style.fontWeight = "400";
-      text.style.lineHeight = "16px";
-      text.style.fontFamily = "Roboto,Helvetica,Arial,sans-serif";
-      text.textContent = color.time;
-
-      item.appendChild(colorDot);
-      item.appendChild(text);
-      table.appendChild(item);
+      renderDataRow(color.color, color.time, table);
     });
 };
 
-init = () => {
-  /**
-   * Build table with time details
-   */
+const computeCustomData = (table) => {
+  console.log("Running computeCustomData...")
+  table.textContent = "";
+  const parsedEventLengths = {};
+  for (const key in CUSTOM_EVENT_TITLES) {
+    parsedEventLengths[key] = 0;
+  }
+
+
+  const events = document.querySelectorAll("[data-eventchip]");
+  events.forEach((event) => {
+    for (const key in CUSTOM_EVENT_TITLES) {
+      if (event.innerText.includes(key)) {
+        parsedEventLengths[key] += parseInt(getTimeFromEventSize(event));
+      }
+    }
+  });
+
+  console.log(parsedEventLengths)
+
+  
+  for (const [title, colorValue] of Object.entries(CUSTOM_EVENT_TITLES)) {
+    console.log(`${title} - ${formatTime(parsedEventLengths[title])}`)
+    renderDataRow(colorValue, `${title} - ${formatTime(parsedEventLengths[title])}`, table)
+  }
+
+};
+
+const renderTable = (titleContent) => {
   const table = document.createElement("ul");
   table.style.paddingLeft = "28px";
   table.style.margin = "4px 0px 8px";
@@ -185,7 +216,7 @@ init = () => {
   title.style.alignItems = "center";
 
   const titleText = document.createElement("span");
-  titleText.textContent = i18n.t("title");
+  titleText.textContent = titleContent;
   titleText.style.flexGrow = "1";
   titleText.style.fontFamily = "'Google Sans',Roboto,Arial,sans-serif";
   titleText.style.fontSize = "14px";
@@ -195,15 +226,23 @@ init = () => {
   titleText.style.color = "#3c4043";
   title.appendChild(titleText);
 
-  /**
-   * Insert table
-   */
   const miniMonthNavigator = document.getElementById(
     "drawerMiniMonthNavigator"
   );
   miniMonthNavigator.insertAdjacentElement("afterend", table);
   miniMonthNavigator.insertAdjacentElement("afterend", title);
 
+  return table;
+};
+
+init = () => {
+  const customTable = renderTable("Custom Table");
+  computeCustomData(customTable);
+  setInterval(() => { computeCustomData(customTable) }, 5000);
+  /**
+   * Build table with time details
+   */
+  const table = renderTable(i18n.t("title"));
   computeColorData(table);
   setInterval(() => { computeColorData(table) }, 5000);
 };
