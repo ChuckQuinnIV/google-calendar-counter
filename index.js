@@ -66,10 +66,7 @@ const getTimeFromEventSize = (event) =>
   minuteHeight;
 
 const formatTime = (time) =>
-  `${time >= 60 ? `${Math.trunc(time / 60)}h` : ""}${time % 60 !== 0 ? `${time % 60}m` : ""
-  } (${(time / MINUTES_PER_DAY).toLocaleString(language, {
-    maximumFractionDigits: 1,
-  })}${i18n.t("day")})`;
+  `${time >= 60 ? `${Math.trunc(time / 60)}h` : ""} ${time % 60 !== 0 ? `${time % 60}m` : ""}`;
 
 const renderDataRow = (dotColor, textContent, table) => {
   const item = document.createElement("li");
