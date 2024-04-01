@@ -9,10 +9,8 @@ const MINUTES_PER_DAY = 7 * 60; // 7 hours in a day of work
 const NOT_ACCEPTED_YET_MEETINGS_COLOR = "rgb(255, 255, 255)";
 let minuteHeight = MINUTE_HEIGHT_NORMAL;
 const CUSTOM_EVENT_TITLES = {
-  "🎮 WoW": "red",
-  "🎮 D2": "green",
   "🧑🏻‍💻": "blue",
-}
+};
 
 /**
  * i18n utils
@@ -228,8 +226,33 @@ const renderTable = (titleContent) => {
   return table;
 };
 
+const customSearch = (event) => {
+  if(event.key === 'Enter') {
+    const inputValue = document.getElementById("google-calendar-time-spent-custom-search").value;
+    CUSTOM_EVENT_TITLES[inputValue] = 'grey';
+    document.getElementById("google-calendar-time-spent-custom-search").value = "";
+  }
+};
+
+const renderSearch = () => {
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder="Custom Event Search";
+  input.id = "google-calendar-time-spent-custom-search";
+  input.class="search";
+  input.onkeydown = customSearch;
+
+  const miniMonthNavigator = document.getElementById(
+    "drawerMiniMonthNavigator"
+  );
+  miniMonthNavigator.insertAdjacentElement("afterend", input);
+
+  return input;
+};
+
 init = () => {
   const customTable = renderTable("Custom Table");
+  const customSearch = renderSearch();
   setInterval(() => { computeCustomData(customTable) }, 500);
   /**
    * Build table with time details
