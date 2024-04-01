@@ -11,6 +11,7 @@ let minuteHeight = MINUTE_HEIGHT_NORMAL;
 const CUSTOM_EVENT_TITLES = {
   "🎮 WoW": "red",
   "🎮 D2": "green",
+  "🧑🏻‍💻": "blue",
 }
 
 /**
@@ -184,14 +185,15 @@ const computeCustomData = (table) => {
   events.forEach((event) => {
     for (const key in CUSTOM_EVENT_TITLES) {
       if (event.innerText.includes(key)) {
-        parsedEventLengths[key] += parseInt(getTimeFromEventSize(event));
+        let eventLength = parseInt(getTimeFromEventSize(event));
+        if (eventLength < 15) eventLength = 0;
+        parsedEventLengths[key] += eventLength;
       }
     }
   });
 
-  
   for (const [title, colorValue] of Object.entries(CUSTOM_EVENT_TITLES)) {
-    renderDataRow(colorValue, `${title} - ${formatTime(parsedEventLengths[title])}`, table)
+    if (parsedEventLengths[title] != 0) renderDataRow(colorValue, `${title} - ${formatTime(parsedEventLengths[title])}`, table);
   }
 
 };
